@@ -13,14 +13,8 @@ import ManagerHomePage from "./pages/manager/ManagerHomePage";
 import ManagerTrackWorkerPage from "./pages/manager/ManagerTrackWorkerPage";
 import ManagerWorkstationDetailsPage from "./pages/manager/ManagerWorkstationDetailsPage";
 
-// MPS Pages
-import MpsHomePage from "./pages/mps/MpsHomePage";
-import MpsStocksPage from "./pages/mps/MpsStocksPage";
-import MpsOperationsPage from "./pages/mps/MpsOperationsPage";
-import MpsUsersPage from "./pages/mps/MpsUsersPage";
-import MpsWorkordersPage from "./pages/mps/MpsWorkordersPage";
-import MpsWorkstationsPage from "./pages/mps/MpsWorkstationsPage";
-import MpsManagementPage from "./pages/mps/MpsManagementPage"; 
+// MPS Page (tek sayfa var)
+import MpsPanel from "./pages/mps/MpsPanel";
 
 // Layout
 import MainLayout from "./components/layouts/MainLayout";
@@ -102,55 +96,7 @@ const App = () => {
         path="/mps"
         element={
           <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsHomePage /></MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mps/stocks"
-        element={
-          <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsStocksPage /></MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mps/operations"
-        element={
-          <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsOperationsPage /></MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mps/users"
-        element={
-          <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsUsersPage /></MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mps/workorders"
-        element={
-          <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsWorkordersPage /></MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mps/workstations"
-        element={
-          <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsWorkstationsPage /></MainLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mps/management"
-        element={
-          <ProtectedRoute allowedRoles={["mps"]}>
-            <MainLayout><MpsManagementPage /></MainLayout>
+            <MainLayout><MpsPanel /></MainLayout>
           </ProtectedRoute>
         }
       />

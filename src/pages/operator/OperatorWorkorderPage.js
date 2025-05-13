@@ -1,53 +1,83 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const OperatorWorkorderPage = () => {
   const [workorders, setWorkorders] = useState([]);
   const [selectedWorkorder, setSelectedWorkorder] = useState(null);
   const [scodeGroups, setScodeGroups] = useState({});
-  const [selectedScode, setSelectedScode] = useState("");
+  const [selectedScode, setSelectedScode] = useState(10); 
+  const [operatorId, setOperatorId] = useState(1); 
   const navigate = useNavigate();
 
-  useEffect(() => {
-  
-    setWorkorders([
-      { workorderId: 1001, isActive: true, currentScodeValue: 42 },
-      { workorderId: 1002, isActive: false, currentScodeValue: 10 },
-      { workorderId: 1003, isActive: false, currentScodeValue: 33 },
-    ]);
+  const workstationId = localStorage.getItem("workstationId");
 
-    setScodeGroups({
+  useEffect(() => {
+    if (!workstationId) return;
+
+    const fetchWorkorders = async () => {
+      try {
+        const res = await axios.get(
+          `http://localhost:5031/api/workstations/${workstationId}/workorders`
+        );
+        setWorkorders(res.data);
+      } catch (err) {
+        console.error("Failed to load workorders:", err);
+      }
+    };
+
+    const predefinedScodes = {
       "STARTUP DOWNTIME": [
-        { id: 1, description: "MATERIAL AND EQUIPMENT PREPARATION" },
-        { id: 2, description: "SETUP" },
+        { id: 10, description: "STARTUP" }
       ],
       "PLANNED DOWNTIME": [
-        { id: 3, description: "MAINTENANCE" },
-        { id: 4, description: "MEAL BREAK" },
-        { id: 5, description: "EDUCATION" },
+        { id: 21, description: "MAINTENANCE" },
+        { id: 22, description: "MEAL BREAK" }
       ],
       "UNPLANNED DOWNTIME": [
-        { id: 6, description: "MACHINE FAILURE" },
-        { id: 7, description: "LACK OF STAFF" },
+        { id: 31, description: "MACHINE FAILURE" },
+        { id: 32, description: "LACK OF STAFF" }
       ],
-    });
+      PRODUCTION: [
+        { id: 33, description: "PRODUCTION" }
+      ]
+    };
 
-    
-    setSelectedScode("MATERIAL AND EQUIPMENT PREPARATION");
-  }, []);
+    setScodeGroups(predefinedScodes);
+    setSelectedScode(10);
+    fetchWorkorders();
+  }, [workstationId]);
 
-  const handleStartWorkorder = () => {
+  const handleStartWorkorder = async () => {
     if (!selectedWorkorder || !selectedScode) {
       alert("Please select a workorder and SCODE.");
       return;
     }
 
-    navigate(`/operator/workorders/${selectedWorkorder.workorderId}`);
+    try {
+      const payload = {
+        workstationId: parseInt(workstationId),
+        workorderId: selectedWorkorder.workorderId,
+        initialScode: selectedScode,
+        operatorId: operatorId,
+        reason: "Started manually from UI"
+      };
+
+      await axios.post(
+        `http://localhost:5031/api/operator/${workstationId}/activate-workorder`,
+        payload
+      );
+
+      navigate(`/operator/workorders/${selectedWorkorder.workorderId}`);
+    } catch (error) {
+      console.error("Failed to start workorder:", error);
+      alert("Failed to start workorder.");
+    }
   };
 
   return (
     <div className="p-6 md:flex gap-6 font-sans">
-      {/* İş Emri Listesi */}
       <div className="md:w-1/2 space-y-4">
         <h2 className="text-2xl font-bold mb-2">Workorders</h2>
         {workorders.map((wo) => (
@@ -75,12 +105,13 @@ const OperatorWorkorderPage = () => {
         ))}
       </div>
 
-      {/* Başlatma Paneli */}
       <div className="md:w-1/2 bg-white rounded border shadow p-6 mt-6 md:mt-0">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">Start Selected Workorder</h3>
 
         {!selectedWorkorder ? (
-          <p className="text-gray-500">📄 Please select a workorder from the left panel to begin.</p>
+          <p className="text-gray-500">
+            📄 Please select a workorder from the left panel to begin.
+          </p>
         ) : (
           <>
             <div className="mb-4">
@@ -89,13 +120,13 @@ const OperatorWorkorderPage = () => {
               </label>
               <select
                 value={selectedScode}
-                onChange={(e) => setSelectedScode(e.target.value)}
+                onChange={(e) => setSelectedScode(parseInt(e.target.value))}
                 className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 {Object.entries(scodeGroups).map(([category, items]) => (
                   <optgroup key={category} label={category}>
                     {items.map((item) => (
-                      <option key={item.id} value={item.description}>
+                      <option key={item.id} value={item.id}>
                         {item.description}
                       </option>
                     ))}

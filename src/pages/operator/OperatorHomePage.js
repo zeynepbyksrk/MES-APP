@@ -1,4 +1,6 @@
+// ✅ OperatorHomePage.js (axios version)
 import React, { useEffect, useState } from "react";
+import axios from "axios";
 
 const MetricCard = ({ label, value }) => (
   <div className="bg-gray-50 rounded-md border px-3 py-4">
@@ -13,41 +15,15 @@ const OperatorHomePage = () => {
   const [workstations, setWorkstations] = useState([]);
 
   useEffect(() => {
-    
-    const mockWorkstations = [
-      {
-        workstationName: "Assembly Line A",
-        serialNumber: "SN-001",
-        activeWorkorderId: 1001,
-        activeScode: 42,
-        oee: 88.4,
-        quality: 93.2,
-        performance: 85.6,
-        availability: 87.9,
-      },
-      {
-        workstationName: "Assembly Line B",
-        serialNumber: "SN-002",
-        activeWorkorderId: null,
-        activeScode: null,
-        oee: null,
-        quality: null,
-        performance: null,
-        availability: null,
-      },
-      {
-        workstationName: "Packaging Unit",
-        serialNumber: "SN-003",
-        activeWorkorderId: 1005,
-        activeScode: 33,
-        oee: 78.9,
-        quality: 89.5,
-        performance: 81.2,
-        availability: 75.3,
-      },
-    ];
-
-    setWorkstations(mockWorkstations);
+    const fetchWorkstations = async () => {
+      try {
+        const res = await axios.get("http://localhost:5031/api/workstations/details");
+        setWorkstations(res.data);
+      } catch (error) {
+        console.error("Error fetching workstations:", error);
+      }
+    };
+    fetchWorkstations();
   }, []);
 
   const getStatusDot = (oee) => {

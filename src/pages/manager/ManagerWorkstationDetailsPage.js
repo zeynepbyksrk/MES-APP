@@ -1,66 +1,46 @@
 import React, { useEffect, useState } from "react";
 import { FaMicrochip } from "react-icons/fa";
+import axios from "axios";
 
 const ManagerWorkstationDetailsPage = () => {
   const [workstations, setWorkstations] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
-  const [workorders, setWorkorders] = useState([]);
+  const [stateLogs, setStateLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-   
-    const mockWorkstations = [
-      {
-        id: 1,
-        name: "WS-TUR-PRD01",
-        serialNumber: "SN-001",
-        status: "Running",
-        activeWorkorderId: 1063,
-        sensor1Percent: 70,
-        sensor2Percent: 45,
-      },
-      {
-        id: 2,
-        name: "WS-TUR-CR020",
-        serialNumber: "SN-002",
-        status: "Idle",
-        activeWorkorderId: null,
-        sensor1Percent: 50,
-        sensor2Percent: 60,
-      },
-    ];
-    setWorkstations(mockWorkstations);
+    const fetchWorkstations = async () => {
+      try {
+        const res = await axios.get("http://localhost:5143/api/workstations/summary");
+        setWorkstations(res.data);
+      } catch (err) {
+        setError("Failed to fetch workstations");
+      }
+    };
+    fetchWorkstations();
   }, []);
 
-  useEffect(() => {
-    if (!selectedStation) {
-      setWorkorders([]);
+  const handleStationClick = async (ws) => {
+    if (selectedStation?.id === ws.id) {
+      setSelectedStation(null);
+      setStateLogs([]);
       return;
     }
 
-    const mockWorkorders = [
-      {
-        workorderId: 1001,
-        operatorName: "Ali Yılmaz",
-        startTime: "2024-05-01T08:00:00",
-        endTime: "2024-05-01T14:30:00",
-        quantity: 120,
-        scrap: 5,
-      },
-      {
-        workorderId: 1002,
-        operatorName: "Elif Demir",
-        startTime: "2024-04-30T09:15:00",
-        endTime: "2024-04-30T15:45:00",
-        quantity: 110,
-        scrap: 3,
-      },
-    ];
+    setSelectedStation(ws);
+    setLoading(true);
+    setError(null);
 
-    setWorkorders(mockWorkorders);
-  }, [selectedStation]);
-
-  const handleStationClick = (ws) => {
-    setSelectedStation((prev) => (prev?.id === ws.id ? null : ws));
+    try {
+      const res = await axios.get(`http://localhost:5143/api/workstations/${ws.id}/state-logs`);
+      setStateLogs(res.data);
+    } catch (err) {
+      setError("Failed to fetch workorder history.");
+      setStateLogs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -70,7 +50,7 @@ const ManagerWorkstationDetailsPage = () => {
       Error: "bg-red-100 text-red-700",
     };
     return (
-      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusClasses[status]}`}>
+      <span className={`text-xs px-2 py-1 rounded-full font-semibold ${statusClasses[status] || "bg-gray-100 text-gray-600"}`}>
         {status}
       </span>
     );
@@ -82,7 +62,8 @@ const ManagerWorkstationDetailsPage = () => {
         <FaMicrochip className="text-indigo-600" /> Workstation Overview
       </h2>
 
-      {/* Workstation Cards */}
+      {error && <p className="text-red-500 mb-4">{error}</p>}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         {workstations.map((ws) => (
           <div
@@ -98,58 +79,44 @@ const ManagerWorkstationDetailsPage = () => {
             <p className="text-sm text-gray-500 mb-1">
               Active Workorder: {ws.activeWorkorderId ?? "—"}
             </p>
-            <div className="mt-4">
-              {[1, 2].map((num) => (
-                <div className="mb-2" key={num}>
-                  <p className="text-xs font-semibold mb-1">Sensor {num}</p>
-                  <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-700 ease-in-out ${
-                        num === 1 ? "bg-green-500" : "bg-blue-500"
-                      }`}
-                      style={{ width: `${ws[`sensor${num}Percent`]}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1">{ws[`sensor${num}Percent`]}%</p>
-                </div>
-              ))}
-            </div>
           </div>
         ))}
       </div>
 
-      {/* Workorder History Table */}
       {selectedStation && (
         <>
           <h3 className="text-xl font-bold mb-3 text-gray-800">
-            📘 Workorder History for {selectedStation.name}
+            📘 SCODE History for {selectedStation.name}
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border bg-white shadow-sm">
-              <thead className="bg-gray-100 text-gray-700">
-                <tr>
-                  <th className="px-3 py-2 border">ID</th>
-                  <th className="px-3 py-2 border">Operator</th>
-                  <th className="px-3 py-2 border">Start</th>
-                  <th className="px-3 py-2 border">End</th>
-                  <th className="px-3 py-2 border">Qty</th>
-                  <th className="px-3 py-2 border">Scrap</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workorders.map((w, i) => (
-                  <tr key={i} className="text-center hover:bg-blue-50 transition">
-                    <td className="px-3 py-2 border">{w.workorderId}</td>
-                    <td className="px-3 py-2 border">{w.operatorName}</td>
-                    <td className="px-3 py-2 border">{new Date(w.startTime).toLocaleString()}</td>
-                    <td className="px-3 py-2 border">{new Date(w.endTime).toLocaleString()}</td>
-                    <td className="px-3 py-2 border">{w.quantity}</td>
-                    <td className="px-3 py-2 border">{w.scrap}</td>
+
+          {loading ? (
+            <p className="text-gray-500">Loading workorder history...</p>
+          ) : stateLogs.length === 0 ? (
+            <p className="text-gray-500">No SCODE history found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border bg-white shadow-sm">
+                <thead className="bg-gray-100 text-gray-700">
+                  <tr>
+                    <th className="px-3 py-2 border">SCODE</th>
+                    <th className="px-3 py-2 border">Operator</th>
+                    <th className="px-3 py-2 border">Time</th>
+                    <th className="px-3 py-2 border">Reason</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {stateLogs.map((log, i) => (
+                    <tr key={i} className="text-center hover:bg-blue-50 transition">
+                      <td className="px-3 py-2 border">{log.newScodeId}</td>
+                      <td className="px-3 py-2 border">{log.changedByOperatorId}</td>
+                      <td className="px-3 py-2 border">{new Date(log.changedAt).toLocaleString()}</td>
+                      <td className="px-3 py-2 border">{log.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>

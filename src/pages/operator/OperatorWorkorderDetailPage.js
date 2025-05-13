@@ -1,56 +1,45 @@
+// ✅ OperatorWorkorderDetailPage.js - backend uyumlu versiyon
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const OperatorWorkorderDetailPage = () => {
   const { workorderId } = useParams();
   const navigate = useNavigate();
   const [performanceLogs, setPerformanceLogs] = useState([]);
   const [stateLogs, setStateLogs] = useState([]);
+  const [workstationId, setWorkstationId] = useState(localStorage.getItem("workstationId"));
 
   useEffect(() => {
-  
-    const mockPerformance = [
-      {
-        recordedAt: new Date().toISOString(),
-        oee: 87.5,
-        performance: 89.2,
-        quality: 94.1,
-        availability: 81.6,
-      },
-      {
-        recordedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-        oee: 83.4,
-        performance: 86.3,
-        quality: 90.7,
-        availability: 77.9,
-      },
-    ];
+    if (!workstationId || !workorderId) return;
 
-    
-    const mockStates = [
-      {
-        changedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
-        oldScodeId: 10,
-        newScodeId: 42,
-        changedByOperatorId: 1001,
-        reason: "Startup: Material and Equipment Preparation",
-      },
-      {
-        changedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        oldScodeId: 42,
-        newScodeId: 33,
-        changedByOperatorId: 1001,
-        reason: "Downtime: Lack of Staff",
-      },
-    ];
+    const fetchLogs = async () => {
+      try {
+        const [performanceRes, stateRes] = await Promise.all([
+          axios.get(
+            `http://localhost:5031/api/workstations/${workstationId}/performance-logs`
+          ),
+          axios.get(
+            `http://localhost:5031/api/workstations/${workstationId}/state-logs`
+          ),
+        ]);
 
-    setPerformanceLogs(mockPerformance);
-    setStateLogs(mockStates);
-  }, [workorderId]);
+        setPerformanceLogs(
+          performanceRes.data.filter((p) => p.workorderId === parseInt(workorderId))
+        );
+        setStateLogs(
+          stateRes.data.filter((s) => s.workorderId === parseInt(workorderId))
+        );
+      } catch (error) {
+        console.error("Error fetching logs:", error);
+      }
+    };
+
+    fetchLogs();
+  }, [workstationId, workorderId]);
 
   return (
     <div className="p-6 font-sans max-w-screen-xl mx-auto">
-      {/* Back Button */}
       <div className="mb-4">
         <button
           onClick={() => navigate(-1)}
@@ -62,7 +51,6 @@ const OperatorWorkorderDetailPage = () => {
 
       <h2 className="text-3xl font-bold text-gray-800 mb-6">Workorder #{workorderId}</h2>
 
-      {/* Performance Logs Table */}
       <section className="mb-10">
         <div className="bg-gray-50 border px-4 py-2 rounded font-semibold text-gray-700 mb-4">
           📊 Performance Logs
@@ -99,7 +87,6 @@ const OperatorWorkorderDetailPage = () => {
         )}
       </section>
 
-      {/* SCODE State Logs */}
       <section>
         <div className="bg-gray-50 border px-4 py-2 rounded font-semibold text-gray-700 mb-4">
           📄 SCODE Change History

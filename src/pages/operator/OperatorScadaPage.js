@@ -1,78 +1,116 @@
+// ✅ OperatorScadaPage.js - backend uyumlu hale getirildi
 import React, { useEffect, useState } from "react";
 import { FaPause, FaCheck } from "react-icons/fa";
+import axios from "axios";
 
 const OperatorScadaPage = () => {
   const [scodeGroups, setScodeGroups] = useState({});
-  const [selectedScode, setSelectedScode] = useState("");
+  const [selectedScode, setSelectedScode] = useState(10); // default: startup downtime
   const [reason, setReason] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedNewWorkorder, setSelectedNewWorkorder] = useState("");
   const [runningWorkorders, setRunningWorkorders] = useState([]);
   const [summary, setSummary] = useState({});
 
+  const workstationId = parseInt(localStorage.getItem("workstationId"));
+  const operatorId = 1; // örnek sabit, ileride login sonrası alınabilir
+
   useEffect(() => {
-   
+    const fetchData = async () => {
+      try {
+        const [workordersRes, workstationDetailsRes] = await Promise.all([
+          axios.get(`http://localhost:5031/api/workstations/${workstationId}/workorders`),
+          axios.get(`http://localhost:5031/api/workstations/${workstationId}`),
+        ]);
+
+        setRunningWorkorders(workordersRes.data.filter(w => w.isActive));
+
+        const d = workstationDetailsRes.data;
+        setSummary({
+          planned: d.plannedQuantity || 200,
+          taktTime: d.taktTime || 10,
+          produced: d.producedQuantity || 120,
+          scrap: d.scrapQuantity || 8,
+          cycleTime: d.cycleTime || 9.5,
+          oee: d.oee || 0,
+          performance: d.performance || 0,
+          quality: d.quality || 0,
+          availability: d.availability || 0,
+        });
+      } catch (err) {
+        console.error("Error loading SCADA data:", err);
+      }
+    };
+
     setScodeGroups({
       "STARTUP DOWNTIME": [
-        { id: 1, description: "MATERIAL AND EQUIPMENT PREPARATION" },
-        { id: 2, description: "SETUP" },
+        { id: 10, description: "MATERIAL AND EQUIPMENT PREPARATION" },
+        { id: 11, description: "SETUP" },
       ],
       "PLANNED DOWNTIME": [
-        { id: 3, description: "MAINTENANCE" },
-        { id: 4, description: "MEAL BREAK" },
-        { id: 5, description: "EDUCATION" },
+        { id: 21, description: "MAINTENANCE" },
+        { id: 22, description: "MEAL BREAK" },
+        { id: 23, description: "EDUCATION" },
       ],
       "UNPLANNED DOWNTIME": [
-        { id: 6, description: "MACHINE FAILURE" },
-        { id: 7, description: "LACK OF STAFF" },
+        { id: 31, description: "MACHINE FAILURE" },
+        { id: 32, description: "LACK OF STAFF" },
       ],
-      "PRODUCTION": [
-        { id: 8, description: "PRODUCTION" }
-      ]
+      PRODUCTION: [
+        { id: 33, description: "PRODUCTION" },
+      ],
     });
 
-   
-    setRunningWorkorders([
-      { workorderId: 1063 },
-      { workorderId: 1214 },
-      { workorderId: 2120 }
-    ]);
+    fetchData();
+  }, [workstationId]);
 
-    
-    setSummary({
-      planned: 200,
-      taktTime: 10,
-      produced: 120,
-      scrap: 8,
-      cycleTime: 9.5,
-      oee: 80,
-      performance: 80,
-      quality: 80,
-      availability: 70,
-    });
-
-    setSelectedScode("MATERIAL AND EQUIPMENT PREPARATION");
-  }, []);
-
-  const handleChangeEvent = () => {
+  const handleChangeEvent = async () => {
     if (!reason.trim()) {
       alert("Please enter a reason.");
       return;
     }
-    alert(`Event changed to "${selectedScode}" with reason: "${reason}"`);
+
+    try {
+      await axios.post(`http://localhost:5031/api/operator/${workstationId}/change-scode`, {
+        workstationId,
+        newScode: selectedScode,
+        reason,
+        operatorId,
+      });
+      alert("Event updated successfully.");
+    } catch (err) {
+      console.error("SCODE update failed:", err);
+      alert("Failed to update event.");
+    }
   };
 
   const handleSuspendWorkorder = () => {
     setShowModal(true);
   };
 
-  const handleStartNewWorkorder = () => {
+  const handleStartNewWorkorder = async () => {
     if (!selectedNewWorkorder || !selectedScode) {
       alert("Please select workorder and SCODE.");
       return;
     }
-    alert(`Started workorder #${selectedNewWorkorder} with SCODE "${selectedScode}"`);
-    setShowModal(false);
+
+    try {
+      await axios.post(
+        `http://localhost:5031/api/operator/${workstationId}/activate-workorder`,
+        {
+          workstationId,
+          workorderId: parseInt(selectedNewWorkorder),
+          initialScode: selectedScode,
+          operatorId,
+          reason,
+        }
+      );
+      alert("New workorder started successfully.");
+      setShowModal(false);
+    } catch (err) {
+      console.error("Activate workorder error:", err);
+      alert("Failed to activate new workorder.");
+    }
   };
 
   const handleFinishWorkorder = () => {
@@ -81,7 +119,6 @@ const OperatorScadaPage = () => {
 
   return (
     <div className="p-6 font-sans grid grid-cols-12 gap-6">
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-xl w-[90%] md:w-[500px]">
@@ -103,13 +140,13 @@ const OperatorScadaPage = () => {
             <label className="block text-sm font-medium mb-1">Starting Event</label>
             <select
               value={selectedScode}
-              onChange={(e) => setSelectedScode(e.target.value)}
+              onChange={(e) => setSelectedScode(parseInt(e.target.value))}
               className="w-full border rounded p-2 mb-4"
             >
               {Object.entries(scodeGroups).map(([group, items]) => (
                 <optgroup key={group} label={group}>
                   {items.map((item) => (
-                    <option key={item.id} value={item.description}>
+                    <option key={item.id} value={item.id}>
                       {item.description}
                     </option>
                   ))}
@@ -129,19 +166,18 @@ const OperatorScadaPage = () => {
         </div>
       )}
 
-      {/* Sol Panel - Event değiştirme */}
       <div className="col-span-3 bg-white p-6 rounded shadow space-y-4">
         <h3 className="text-lg font-bold flex items-center gap-2">🔧 Change Event</h3>
         <label className="text-sm font-medium">Event Type</label>
         <select
           value={selectedScode}
-          onChange={(e) => setSelectedScode(e.target.value)}
+          onChange={(e) => setSelectedScode(parseInt(e.target.value))}
           className="w-full border p-2 rounded"
         >
           {Object.entries(scodeGroups).map(([group, items]) => (
             <optgroup key={group} label={group}>
               {items.map((item) => (
-                <option key={item.id} value={item.description}>
+                <option key={item.id} value={item.id}>
                   {item.description}
                 </option>
               ))}
@@ -163,9 +199,7 @@ const OperatorScadaPage = () => {
         </button>
       </div>
 
-      {/* Sağ Panel - SCADA Metriği */}
       <div className="col-span-9 space-y-6">
-        {/* Üst Butonlar */}
         <div className="flex justify-end gap-3">
           <button
             onClick={handleSuspendWorkorder}
@@ -181,21 +215,24 @@ const OperatorScadaPage = () => {
           </button>
         </div>
 
-        {/* Süre metrikleri */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {["Total", "Startup Downtime", "Planned Downtime", "Unplanned Downtime", "Net Available", "Net Operation"].map((label, i) => (
-            <div key={i} className="bg-gray-900 text-white text-center rounded p-4">
-              <h4 className="text-sm font-medium">⏱ {label.toUpperCase()}</h4>
-              <p className="text-xl font-bold mt-1">0h 0m 0s</p>
-            </div>
-          ))}
+          {["Total", "Startup Downtime", "Planned Downtime", "Unplanned Downtime", "Net Available", "Net Operation"].map(
+            (label, i) => (
+              <div key={i} className="bg-gray-900 text-white text-center rounded p-4">
+                <h4 className="text-sm font-medium">⏱ {label.toUpperCase()}</h4>
+                <p className="text-xl font-bold mt-1">0h 0m 0s</p>
+              </div>
+            )
+          )}
         </div>
 
-        {/* Üretim metrikleri */}
         <div>
           <h4 className="font-semibold mb-2">Production Metrics</h4>
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-            <div className="bg-black h-2.5 rounded-full" style={{ width: `${(summary.produced / summary.planned) * 100}%` }}></div>
+            <div
+              className="bg-black h-2.5 rounded-full"
+              style={{ width: `${(summary.produced / summary.planned) * 100}%` }}
+            ></div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <MetricBox label="Planned Quantity" value={summary.planned} />
@@ -206,7 +243,6 @@ const OperatorScadaPage = () => {
           </div>
         </div>
 
-        {/* Performans göstergeleri */}
         <div>
           <h4 className="font-semibold mb-2">Performance Indicators</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -227,7 +263,6 @@ const OperatorScadaPage = () => {
     </div>
   );
 };
-
 
 const MetricBox = ({ label, value }) => (
   <div className="bg-white rounded p-4 shadow">
